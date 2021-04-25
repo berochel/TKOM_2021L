@@ -12,9 +12,10 @@ from lexer.types import TokenType, token_type_repr
 # classes are used as a source text handlers, generalising and simplyfying
 # file processing.
 class LexerMain:
-    def __init__(self, maxIdentLength, textSource=None, ):
+    def __init__(self, maxIdentLength, maxStringLength, textSource=None):
 
         self.maxIdentLength = maxIdentLength
+        self.maxStringLength = maxStringLength
         self.textSource = textSource
 
         self.readCursorPosition = Position(row=1, column=-1)
@@ -112,9 +113,10 @@ class LexerMain:
             return None
 
         self.get_next_char()
+        stringLength = self.maxStringLength
 
         # gets all chars until second, unescaped quote char appears
-        while self.current_char != '\"':
+        while self.current_char != '\"' and stringLength > 0:
 
             # escapes quote char or anything else, if needed. Doesnt write slash char to
             # the string value.
@@ -123,6 +125,13 @@ class LexerMain:
 
             self.tokenValue += self.current_char
             self.get_next_char()
+
+            stringLength -= 1
+
+        # Encountered a string that exceeds max allowed length. Raises an error.
+        if stringLength <= 0:
+            stop = self.readCursorPosition
+            raise LexerError(self.current_char, stop, " (Exceeded maximum length of a string literal)")
 
         # escapes second quote char
         self.get_next_char()
@@ -140,10 +149,15 @@ class LexerMain:
         identLength = self.maxIdentLength
 
         # gets all valid chars until max length is reached and value is cut short
-        while self.current_char.isalnum() or self.current_char == '_' and identLength > 0:
+        while (self.current_char.isalnum() or self.current_char == '_') and identLength > 0:
             self.tokenValue += self.current_char
             self.get_next_char()
             identLength -= 1
+
+        # Encountered an identifier that exceeds max allowed length. Raises an error.
+        if identLength <= 0:
+            stop = self.readCursorPosition
+            raise LexerError(self.current_char, stop, " (Exceeded maximum length of a identifier literal)")
 
         # checks whether or not token might be a keyword or not
         key = token_type_repr.get(self.tokenValue)
@@ -204,7 +218,7 @@ class LexerMain:
 
         elif self.current_char.isdigit():
             stop = self.readCursorPosition
-            raise LexerError(self.tokenValue, stop)
+            raise LexerError(self.tokenValue, stop, "")
 
         else:
             self.token = new_token(TokenType.VALUE_INT, numberTokenValue, self.start)

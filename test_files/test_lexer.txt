@@ -46,7 +46,7 @@ Integer main()
        	    System.out.println("More than 8:" + i)
         }
     	else
-       	    System.out.println("Some o\"ther value")
+       	    System.out.println("Some o\"ther value that is \hlonger that the maximum default identifier length, that is, 64 characters.")
 
 	    obiekt2.addOne(i);
     }

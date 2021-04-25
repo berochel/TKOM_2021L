@@ -22,7 +22,8 @@ class LexerTest(unittest.TestCase):
 
     def setUp(self) -> None:
 
-        self.lexer = LexerMain(maxIdentLength=64, textSource=TextSourceFromFile(TEST_SOURCE_1_LINE))
+        self.lexer = LexerMain(maxIdentLength=64, maxStringLength=256,
+                               textSource=TextSourceFromFile(TEST_SOURCE_1_LINE))
 
     def test_types(self):
 
@@ -200,6 +201,56 @@ class LexerTest(unittest.TestCase):
             # testing both if error is raised correctly at unvalid zero value,
             # and if it raises at a correct position
             self.assertEqual(exp.message, "Unable to recognize: \"0\" at: (1:1)")
+
+    def test_string_raises(self):
+
+        # Checks if the exceeding max string length is raised correctly
+        # for the default value of maxStringLength, that is, 256.
+        tokens = []
+        line = "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\""
+        put_line_in_lexer_text_source(self.lexer, line)
+
+        try:
+            while not self.lexer.is_eot_token():
+                token = self.lexer.get_token()
+                tokens.append(token)
+        except Exception as exp:
+            # testing both if error is raised correctly at unvalid zero value,
+            # and if it raises at a correct position (column position has to be
+            # equal to maxStringSize + 1)
+            self.assertEqual(exp.message,
+                             "Unable to recognize: \"A\" at: (1:257) (Exceeded maximum length of a string literal)")
+
+    def test_identifier_raises(self):
+
+        # Checks if the exceeding max string length is raised correctly
+        # for the default value of maxIdentLength, that is, 64.
+        tokens = []
+        line = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" \
+               "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        put_line_in_lexer_text_source(self.lexer, line)
+
+        try:
+            while not self.lexer.is_eot_token():
+                token = self.lexer.get_token()
+                tokens.append(token)
+        except Exception as exp:
+            # testing both if error is raised correctly at unvalid zero value,
+            # and if it raises at a correct position (column position has to be
+            # equal to maxIdentSize)
+            self.assertEqual(exp.message,
+                             "Unable to recognize: \"A\" at: (1:64) (Exceeded maximum length of a identifier literal)")
 
     def test_ident(self):
 

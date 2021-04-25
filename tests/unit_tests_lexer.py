@@ -12,7 +12,7 @@ class TestSource(unittest.TestCase):
         from lexer.source_read import TextSourceFromFile
         textSource = TextSourceFromFile('../test_files/test_lexer.txt')
 
-        lexer = LexerMain(textSource=textSource, maxIdentLength=64)
+        lexer = LexerMain(64, 256, textSource)
 
         while not lexer.is_eot_token():
 

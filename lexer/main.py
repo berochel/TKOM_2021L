@@ -17,6 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('--file_path', type=str, default='test_files/test_lexer.txt')
     parser.add_argument('--input_type', type=str, choices=['stdin', 'file'], default='file')
     parser.add_argument('--ident_length', type=int, default=64)
+    parser.add_argument('--string_length', type=int, default=256)
 
     args = parser.parse_args()
 
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     else:
         textSource = TextSourceFromFile(args.file_path)
 
-    lexer = LexerMain(textSource=textSource, maxIdentLength=args.ident_length)
+    lexer = LexerMain(args.ident_length, args.string_length, textSource)
 
     while not lexer.is_eot_token():
 
