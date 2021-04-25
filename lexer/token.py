@@ -95,7 +95,8 @@ class TokenWithDoubleValue(Token):
         return f'{self.type.to_string()}: Decimal: {self.value}, Fraction: {decimal_part}'
 
     def __eq__(self, other):
-        if self.type == other.type and self.value == other.value and self.decimalValue == other.decimalValue and self.denominator == other.denominator:
+        if self.type == other.type and self.value == other.value and self.decimalValue == other.decimalValue \
+                and self.denominator == other.denominator:
             return True
         return False
 

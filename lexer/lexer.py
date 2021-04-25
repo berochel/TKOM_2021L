@@ -61,8 +61,8 @@ class LexerMain:
 
         self.generate_special_char_or_unknown_token()
 
-        if (self.token.type == TokenType.UNKNOWN):
-            raise LexerError(self.token.value, self.token.end)
+        if self.token.type == TokenType.UNKNOWN:
+            raise LexerError(self.token.value, self.token.end, "")
 
         return self.token
 
