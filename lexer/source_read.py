@@ -15,35 +15,63 @@ class TextSource:
 class TextSourceFromFile(TextSource):
     def __init__(self, path):
 
-        self.fs = open(path, 'r')
         self.eof = False
+        self.text = ""
+        self.line = ""
 
-    def read_line(self):
+        with open(path) as fileObj:
+            for line in fileObj:
+                self.text += line
 
-        line = self.fs.readline()
-        if not line:
+    def read_char(self):
+
+        if self.text != "":
+            char = self.text[0]
+            self.text = self.text[1:]
+            return char
+        else:
             self.eof = True
-        return line
+            return ''
+
+    def peek_next_char(self):
+
+        return self.text[0]
 
     def is_end_of_text(self):
 
         return self.eof
 
-    def __del__(self):
-
-        self.fs.close()
-
 
 class TextSourceFromInput(TextSource):
-    def __init__(self):
 
-        self.text = None
+    def __init__(self):
+        self.line = ""
+        self.text = ""
+
+        self.read_text()
 
     def read_line(self):
+        self.line = input('>> ')
+        return self.line
 
-        self.text = input('>> ')
-        return self.text
+    def is_end_of_input(self):
+        return self.line == 'DONE'
 
     def is_end_of_text(self):
-
         return self.text == 'DONE'
+
+    def read_text(self):
+        while not self.is_end_of_input():
+            self.line = self.read_line()
+            self.text += self.line
+
+        self.text = self.text[:-4] + " " + self.text[-4:-1] + "E"
+
+    def read_char(self):
+        char = self.text[0]
+        self.text = self.text[1:]
+
+        return char
+
+    def peek_next_char(self):
+        return self.text[0]

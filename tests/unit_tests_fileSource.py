@@ -14,20 +14,22 @@ class TestSource(unittest.TestCase):
 
     def test_file_source(self):
 
+        text = ""
         file_source = TextSourceFromFile(TEST_SOURCE_1_LINE)
-        text = file_source.read_line()
+        while not file_source.is_end_of_text():
+            text += file_source.read_char()
+
         self.assertEqual("test Integer 5 Double 1;", text, msg='Error in first line.')
-        file_source.read_line()
         self.assertEqual(True, file_source.is_end_of_text(), 'Error when checking EOF')
 
     def test_file_source_three_lines(self):
 
+        text = ""
         file_source = TextSourceFromFile(TEST_SOURCE_2_LINES)
-        text = file_source.read_line()
-        self.assertEqual("test1 sampleId1\n", text, msg='Error in first line.')
-        text = file_source.read_line()
-        self.assertEqual("test2 sample_2", text, msg='Error in second line.')
-        file_source.read_line()
+        while not file_source.is_end_of_text():
+            text += file_source.read_char()
+
+        self.assertEqual("test1 sampleId1\ntest2 sample_2", text, msg='Error in first line.')
         self.assertEqual(True, file_source.is_end_of_text(), msg='Error when checking EOF')
 
 

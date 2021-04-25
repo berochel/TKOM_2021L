@@ -1,201 +1,244 @@
 #    Written by: Jarosław Zabuski, 2021
 
-# Contains all main tokenization methods and Lexer inplementations.
+import string
 
-import argparse
-
-from lexer.token.token import Token, Position, new_token
-from lexer.token.types import TokenType
-from lexer.token.regex_rules import compile_regex
-from lexer.source_read import TextSourceFromFile, TextSourceFromInput
 from error.error_handlers import LexerError
+from lexer.token import Position, new_token, move_forward
+from lexer.types import TokenType, token_type_repr
 
 
 # Main lexer class, containing all methods needed to generate a valid
-# lexical token tree from a source text. InputLexer and FileLexer
+# lexical tokens tree from a source text. InputLexer and FileLexer
 # classes are used as a source text handlers, generalising and simplyfying
 # file processing.
 class LexerMain:
-    def __init__(self, textSource=None):
+    def __init__(self, maxIdentLength, textSource=None, ):
 
+        self.maxIdentLength = maxIdentLength
         self.textSource = textSource
-        self.readCursorPosition = Position(row=1, column=0)
-        self.regexTable = compile_regex()
-        self.tokens = None
-        self.token_iter = 0
 
-    # Iterates through the table of all generated tokens and returns
-    # the same token that was returned in the last call to this
-    # function if move_index is false, or the next one in line
-    # , if it's true.
-    def get_next_token(self, move_index=True):
+        self.readCursorPosition = Position(row=1, column=-1)
+        self.start = Position(row=1, column=-1)
 
-        if self.token_iter < len(self.tokens):
-            token = self.tokens[self.token_iter]
-            if move_index:
-                self.token_iter += 1
-            return token
-        return None
+        self.token = new_token(TokenType.UNKNOWN, 0, Position(1, 0), Position(1, 0))
+        self.tokenValue = ''
+        self.current_char = ''
 
-    # Checks if the token iterator is in bounds. True, if there are tokens
-    # to process, or false otherwise.
-    def if_next_token_valid(self):
+        self.get_next_char()
 
-        return True if self.token_iter < len(self.tokens) else False
+    def get_next_char(self):
 
-    # Processes lines of source text in loop, gathering tokens from next line
-    # of text if possible, and appending them to the main table of all found
-    # tokens.
-    def get_tokens_from_source(self):
+        if not self.textSource.is_end_of_text():
+            self.current_char = self.textSource.read_char()
 
-        all_tokens = []
-        while not self.textSource.is_end_of_text():
+            readCursorPosition = self.readCursorPosition
+            readCursorPosition = move_forward(self.current_char, readCursorPosition.column, readCursorPosition.row, )
+            self.readCursorPosition = readCursorPosition
 
-            tokens = self.get_tokens_from_line()
-            all_tokens.extend(tokens)
+    def is_eot_token(self):
+        return self.token.type == TokenType.EOT
 
-        return all_tokens
+    def get_token(self):
 
-    # Processes a single line of source text. Responsible for reading a new line of text from
-    # source text and keeping track of read cursor position in rows.
-    def get_tokens_from_line(self):
+        self.tokenValue = ''
 
-        line = self.textSource.read_line()
-        tokens = self.get_tokens_from_specified_line(line)
-        self.readCursorPosition.row += 1
+        self.skip_whitespaces()
 
-        return tokens
+        self.start = self.readCursorPosition
 
-    # Processes a single line of source text. Used during tests to inject
-    # test examples.
-    def get_tokens_from_specified_line(self,line):
+        self.generate_unknown_token_placeholder()
 
-        if line:
-            tokens = self.line_lex(line)
+        self.generate_eot_token()
+
+        self.generate_comment_token()
+
+        self.generate_string_token()
+
+        self.generate_keyword_or_ident_token()
+
+        self.generate_integer_or_double_token()
+
+        self.generate_special_char_or_unknown_token()
+
+        if (self.token.type == TokenType.UNKNOWN):
+            raise LexerError(self.token.value, self.token.end)
+
+        return self.token
+
+    def skip_whitespaces(self):
+
+        while str(self.current_char) in string.whitespace and not self.textSource.is_end_of_text():
+            self.get_next_char()
+
+    def generate_unknown_token_placeholder(self):
+
+        self.token = new_token(TokenType.UNKNOWN, 0, Position(1, 0), Position(1, 0))
+        return self.token
+
+    def generate_eot_token(self):
+
+        if self.textSource.is_end_of_text():
+            self.token = new_token(TokenType.EOT, self.tokenValue, self.readCursorPosition, self.readCursorPosition)
+            return self.token
+
+    def generate_comment_token(self):
+
+        # checks if first char is "/"
+        if self.current_char != '/':
+            return None
+
+        self.get_next_char()
+        # checks if second char is "/". returns TokenType.DIV if not.
+        if self.current_char != '/':
+
+            self.token = new_token(TokenType.DIV, self.tokenValue, self.start)
+
         else:
-            tokens = [Token(TokenType.T_EOT, self.readCursorPosition.copy(), self.readCursorPosition.copy())]
+            # second char is "/". Returns valid VALUE_COMMENT token, generated from // chars to end of line.
+            self.get_next_char()
 
-        return tokens
+            while self.current_char != '\n':
+                self.tokenValue += self.current_char
+                self.get_next_char()
 
-    # Responsible for keeping track of read cursor position in columns, invoking main token
-    # generation in valid bounds of line, and updating token table (and skipping ignorable
-    # tokens, like whitespaces and comments). Here we also take care of specific operations
-    # such as splicing a single string literal token created by regex rules, into three
-    # separate tokens, to account for single quote character escaping and for
-    # readability reasons.
-    def line_lex(self, line):
+            self.token = new_token(TokenType.VALUE_COMMENT, self.tokenValue, self.start)
 
-        self.readCursorPosition.column = 0
-        tokens = []
-        while self.readCursorPosition.column < len(line):
-            token = self.get_single_token(line)
+        return self.token
 
-            if token.type is not TokenType.T_IGNORE:
+    def generate_string_token(self):
 
-                if token.type is TokenType.VT_STRING:
+        # checks if first char is """
+        if self.current_char != '\"':
+            return None
 
-                    tempToken = new_token(TokenType.T_QUOTE, token.value, token.start, token.start + 1)
-                    tokens.append(tempToken)
-                    tempToken = new_token(TokenType.VT_STRING, token.value[1:-1], token.start + 1,
-                                          token.end - 1)
-                    tokens.append(tempToken)
-                    tempToken = new_token(TokenType.T_QUOTE, token.value, token.end - 1, token.end)
-                    tokens.append(tempToken)
+        self.get_next_char()
 
-                elif token.type is TokenType.T_COMMENT_SIGN:
+        # gets all chars until second, unescaped quote char appears
+        while self.current_char != '\"':
 
-                    tokens.append(token)
-                    value = line[token.end.column:-1]
-                    pos_start = Position(token.end.row, token.end.column)
-                    pos_end = Position(token.end.row, len(line) - 1)
-                    token = new_token(TokenType.VT_COMMENT, value, pos_start, pos_end)
-                    tokens.append(token)
+            # escapes quote char or anything else, if needed. Doesnt write slash char to
+            # the string value.
+            if self.current_char == "\\":
+                self.get_next_char()
 
-                else:
-                    tokens.append(token)
+            self.tokenValue += self.current_char
+            self.get_next_char()
 
-            self.readCursorPosition.column = token.end.column
+        # escapes second quote char
+        self.get_next_char()
 
-        return tokens
+        self.token = new_token(TokenType.VALUE_STRING, self.tokenValue, self.start)
 
-    # Responsible for proper lexer error handling, like, for example, unsupported characters
-    # found in source text.
-    def get_single_token(self, line):
+        return self.token
 
-        try:
-            return self.find_single_token(line)
-        except LexerError as e:
-            e.print_error_and_exit()
+    def generate_keyword_or_ident_token(self):
 
-    # Main token generation method: checks if any regex rules strike a match and produce
-    # a valid token. Checks from left to right for valid tokens, and if matched, creates
-    # a new token, updates its type, value ("if it has a value, for example, when processing
-    # string literal or an identifier of a variable), and position in the source text.
-    # Raises LexerError, if in any point a line has a character not meant to be used in source
-    # code.
-    def find_single_token(self, line):
+        # checks if current char signifies that a keyword or ident appears.
+        if not self.current_char.isalpha() and self.current_char != '_':
+            return None
 
-        for regex in self.regexTable:
-            match = regex.match(line, self.readCursorPosition.column)
+        identLength = self.maxIdentLength
 
-            if match:
+        # gets all valid chars until max length is reached and value is cut short
+        while self.current_char.isalnum() or self.current_char == '_' and identLength > 0:
+            self.tokenValue += self.current_char
+            self.get_next_char()
+            identLength -= 1
 
-                token_type = self.regexTable[regex]
-                value = match.group(0)
-                pos_start = self.readCursorPosition.copy()
-                pos_end = Position(self.readCursorPosition.row, match.end(0))
-                matching_token = new_token(token_type, value, pos_start, pos_end)
-                return matching_token
+        # checks whether or not token might be a keyword or not
+        key = token_type_repr.get(self.tokenValue)
 
-        raise LexerError(line[self.readCursorPosition.column], self.readCursorPosition)
-
-
-# Supports LexerMain class with an easy way to generalize different
-# text input handling methods. FileSource defined in source_read.py.
-# Initializes main Lexer class and starts the process of tokenizing
-# the source text.
-class FileLexer(LexerMain):
-
-    def __init__(self, file_path):
-
-        super().__init__(textSource = TextSourceFromFile(file_path))
-        self.tokens = self.get_tokens_from_source()
-
-
-# Supports LexerMain class with an easy way to generalize different
-# text input handling methods. InputSource defined in source_read.py.
-# Initializes main Lexer class and starts the process of tokenizing
-# the source text.
-class InputLexer(LexerMain):
-
-    def __init__(self):
-
-        super().__init__(textSource = TextSourceFromInput())
-        self.tokens = self.get_tokens_from_source()
-
-
-# Parses runtime arguments, like type of file input and file path
-# (if text input is selected to be a file) and runs appropiate
-# Lexer text input handlers to run the process of tokenization.
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--verbose', '-v', action="store_true")
-    parser.add_argument('--file_path', type = str, default = 'test_files/test_lexer.txt')
-    parser.add_argument('--lexer_type', type = str, choices = ['stdin', 'file'], default = 'file')
-
-    args = parser.parse_args()
-
-    if args.lexer_type == 'stdin':
-        lexer = InputLexer()
-    else:
-        lexer = FileLexer(args.file_path)
-
-    while lexer.if_next_token_valid():
-
-        if args.verbose:
-            token = lexer.get_next_token()
-            print(f'{token}  ,  token type: {token.type}  ,  {token.print_location()}')
+        if key:
+            self.token = new_token(key, self.tokenValue, self.start)
         else:
-            print(lexer.get_next_token())
+            self.token = new_token(TokenType.VALUE_ID, self.tokenValue, self.start)
+
+        return self.token
+
+    def generate_integer_or_double_token(self):
+
+        # checks if current character is a valid digit
+        if not self.current_char.isdigit():
+            return None
+        elif self.current_char == "0":
+            self.generate_zero_integer_token()
+        else:
+            self.generate_nonzero_integer_token()
+
+        return self.token
+
+    def generate_nonzero_integer_token(self):
+
+        # Non zero digit: takes all valid digits and checks, if there is
+        # a dot char. If there is, parses double value. If not, just returns
+        # the number.
+        numberTokenValue = 0
+
+        # gets all valid characters and represents them as an integer value.
+        # creates integer part of a number.
+        while self.current_char.isdigit():
+            numberTokenValue = numberTokenValue * 10 + int(self.current_char)
+            self.get_next_char()
+
+        # checks if character is meant to be a double.
+        if self.current_char == ".":
+            self.generate_double_token(numberTokenValue)
+        else:
+            self.token = new_token(TokenType.VALUE_INT, numberTokenValue, self.start)
+
+        self.tokenValue = str(numberTokenValue)
+
+    def generate_zero_integer_token(self):
+
+        # Zero digit char: checks if there is a dot char. If not and there is
+        # a digit instead, raises Lexical Error. If not and there is
+        # another char, returns 0 as Integer. If yes, parses double
+        # value.
+        numberTokenValue = 0
+        self.tokenValue = '0'
+
+        self.get_next_char()
+
+        if self.current_char == ".":
+            self.generate_double_token(numberTokenValue)
+
+        elif self.current_char.isdigit():
+            stop = self.readCursorPosition
+            raise LexerError(self.tokenValue, stop)
+
+        else:
+            self.token = new_token(TokenType.VALUE_INT, numberTokenValue, self.start)
+
+    def generate_double_token(self, numberTokenValue):
+
+        # creates appropiate denominator and decimal part of newly parsed
+        # double value.
+        decimalTokenValue = 0
+        decimalDenominator = 0
+        self.get_next_char()
+
+        while self.current_char.isdigit():
+            decimalTokenValue = decimalTokenValue * 10 + int(self.current_char)
+            decimalDenominator += 1
+            self.get_next_char()
+
+        self.token = new_token(TokenType.VALUE_DOUBLE, numberTokenValue, self.start, decimalTokenValue,
+                               decimalDenominator)
+
+    def generate_special_char_or_unknown_token(self):
+
+        # checks if any ALNUM token or EOT token was evaluated before. Ensures that
+        # single special chars are evaluated properly.
+        if self.tokenValue.isalnum() or self.token.type == TokenType.EOT:
+            return None
+
+        self.tokenValue += self.current_char
+
+        # Generates single special char token and reads next char for processing
+        # during next get_token call.
+        key = token_type_repr.get(self.tokenValue)
+        if key:
+            self.get_next_char()
+            self.token = new_token(key, self.tokenValue, self.start)
+
+        return self.token
