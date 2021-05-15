@@ -110,6 +110,10 @@ token_type_repr = {
 
     '<': TokenType.LESS,
     '>': TokenType.GREATER,
+    '<=': TokenType.LESS_EQUAL,
+    '>=': TokenType.GREATER_EQUAL,
+    '!=': TokenType.NOT_EQUAL,
+    '==': TokenType.EQUAL,
 
     'if': TokenType.K_IF,
     'else': TokenType.K_ELSE,
@@ -131,3 +135,13 @@ token_type_repr = {
     'Identifier': TokenType.VALUE_ID,
 
 }
+parameter_types = [TokenType.K_INTEGER,
+                   TokenType.K_STRING,
+                   TokenType.K_DOUBLE,
+                   TokenType.K_BOOLEAN]
+
+function_types = [TokenType.K_INTEGER,
+                  TokenType.K_STRING,
+                  TokenType.K_DOUBLE,
+                  TokenType.K_BOOLEAN,
+                  TokenType.K_VOID]

@@ -35,6 +35,9 @@ class LexerMain:
             readCursorPosition = self.readCursorPosition
             readCursorPosition = move_forward(self.current_char, readCursorPosition.column, readCursorPosition.row, )
             self.readCursorPosition = readCursorPosition
+            return True
+        else:
+            return False
 
     def is_eot_token(self):
         return self.token.type == TokenType.EOT
@@ -47,24 +50,22 @@ class LexerMain:
 
         self.start = self.readCursorPosition
 
-        self.generate_unknown_token_placeholder()
+        if self.generate_eot_token():
+            return self.token
+        if self.generate_comment_token():
+            if self.token.type == TokenType.DIV:
+                return self.token
+            return self.get_token()
+        if self.generate_string_token():
+            return self.token
+        if self.generate_keyword_or_ident_token():
+            return self.token
+        if self.generate_integer_or_double_token():
+            return self.token
+        if self.generate_special_char_or_unknown_token():
+            return self.token
 
-        self.generate_eot_token()
-
-        self.generate_comment_token()
-
-        self.generate_string_token()
-
-        self.generate_keyword_or_ident_token()
-
-        self.generate_integer_or_double_token()
-
-        self.generate_special_char_or_unknown_token()
-
-        if self.token.type == TokenType.UNKNOWN:
-            raise LexerError(self.token.value, self.token.end, "")
-
-        return self.token
+        raise LexerError(self.token.value, self.token.end, "")
 
     def skip_whitespaces(self):
 
@@ -98,7 +99,7 @@ class LexerMain:
             # second char is "/". Returns valid VALUE_COMMENT token, generated from // chars to end of line.
             self.get_next_char()
 
-            while self.current_char != '\n':
+            while self.current_char != '\n' and not self.textSource.is_end_of_text():
                 self.tokenValue += self.current_char
                 self.get_next_char()
 
@@ -116,7 +117,7 @@ class LexerMain:
         stringLength = self.maxStringLength
 
         # gets all chars until second, unescaped quote char appears
-        while self.current_char != '\"' and stringLength > 0:
+        while self.current_char != '\"' and stringLength > 0 and not self.textSource.is_end_of_text():
 
             # escapes quote char or anything else, if needed. Doesnt write slash char to
             # the string value.
@@ -151,7 +152,8 @@ class LexerMain:
         # gets all valid chars until max length is reached and value is cut short
         while (self.current_char.isalnum() or self.current_char == '_') and identLength > 0:
             self.tokenValue += self.current_char
-            self.get_next_char()
+            if not self.get_next_char():
+                break
             identLength -= 1
 
         # Encountered an identifier that exceeds max allowed length. Raises an error.
@@ -160,10 +162,10 @@ class LexerMain:
             raise LexerError(self.current_char, stop, " (Exceeded maximum length of a identifier literal)")
 
         # checks whether or not token might be a keyword or not
-        key = token_type_repr.get(self.tokenValue)
+        value = token_type_repr.get(self.tokenValue)
 
-        if key:
-            self.token = new_token(key, self.tokenValue, self.start)
+        if value:
+            self.token = new_token(value, self.tokenValue, self.start)
         else:
             self.token = new_token(TokenType.VALUE_ID, self.tokenValue, self.start)
 
@@ -192,7 +194,8 @@ class LexerMain:
         # creates integer part of a number.
         while self.current_char.isdigit():
             numberTokenValue = numberTokenValue * 10 + int(self.current_char)
-            self.get_next_char()
+            if not self.get_next_char():
+                break
 
         # checks if character is meant to be a double.
         if self.current_char == ".":
@@ -201,6 +204,8 @@ class LexerMain:
             self.token = new_token(TokenType.VALUE_INT, numberTokenValue, self.start)
 
         self.tokenValue = str(numberTokenValue)
+
+        return self.token
 
     def generate_zero_integer_token(self):
 
@@ -214,7 +219,7 @@ class LexerMain:
         self.get_next_char()
 
         if self.current_char == ".":
-            self.generate_double_token(numberTokenValue)
+            return self.generate_double_token(numberTokenValue)
 
         elif self.current_char.isdigit():
             stop = self.readCursorPosition
@@ -222,6 +227,7 @@ class LexerMain:
 
         else:
             self.token = new_token(TokenType.VALUE_INT, numberTokenValue, self.start)
+            return self.token
 
     def generate_double_token(self, numberTokenValue):
 
@@ -234,10 +240,13 @@ class LexerMain:
         while self.current_char.isdigit():
             decimalTokenValue = decimalTokenValue * 10 + int(self.current_char)
             decimalDenominator += 1
-            self.get_next_char()
+            if not self.get_next_char():
+                break
 
         self.token = new_token(TokenType.VALUE_DOUBLE, numberTokenValue, self.start, decimalTokenValue,
                                decimalDenominator)
+
+        return self.token
 
     def generate_special_char_or_unknown_token(self):
 
@@ -255,4 +264,16 @@ class LexerMain:
             self.get_next_char()
             self.token = new_token(key, self.tokenValue, self.start)
 
+            if self.tokenValue in ["!", "=", ">", "<"]:
+                self.generate_two_char_operator()
         return self.token
+
+    def generate_two_char_operator(self):
+        if self.current_char == "=":
+
+            self.tokenValue += self.current_char
+            key = token_type_repr.get(self.tokenValue)
+
+            if key:
+                self.token = new_token(key, self.tokenValue, self.start)
+                self.get_next_char()

@@ -8,3 +8,12 @@ class LexerError(Exception):
         self.message = f'Unable to recognize: "{self.illegal_char}" at: {self.position.print_location()}' \
                        + additional_msg
         super().__init__(self.message)
+
+
+class ParserError(Exception):
+    def __init__(self, illegal_token, position: Position, additional_msg):
+        self.illegal_token = illegal_token
+        self.position = position
+        self.message = f'Unexpected: "{self.illegal_token}" at: {self.position.print_location()}' \
+                       + additional_msg
+        super().__init__(self.message)

@@ -6,7 +6,7 @@
 import unittest
 
 from lexer.lexer import LexerMain
-from lexer.source_read import TextSourceFromFile
+from lexer.source_read import TextSource
 from lexer.token import Token, TokenWithValue, TokenWithDoubleValue
 from lexer.types import TokenType
 
@@ -16,6 +16,7 @@ TEST_SOURCE_1_LINE = '../test_files/test_lexer_singleLineReadExample.txt'
 def put_line_in_lexer_text_source(lexer, line):
     lexer.textSource.text = line[1:]
     lexer.current_char = line[0]
+    lexer.textSource._is_testing = True
 
 
 class LexerTest(unittest.TestCase):
@@ -23,12 +24,12 @@ class LexerTest(unittest.TestCase):
     def setUp(self) -> None:
 
         self.lexer = LexerMain(maxIdentLength=64, maxStringLength=256,
-                               textSource=TextSourceFromFile(TEST_SOURCE_1_LINE))
+                               textSource=TextSource(TEST_SOURCE_1_LINE))
 
     def test_types(self):
 
         tokens = []
-        line = "Integer Double Boolean String Void "
+        line = "Integer Double Boolean String Void"
         put_line_in_lexer_text_source(self.lexer, line)
 
         while not self.lexer.is_eot_token():
@@ -101,24 +102,34 @@ class LexerTest(unittest.TestCase):
             token = self.lexer.get_token()
             tokens.append(token)
 
-        expected = [Token(TokenType.LESS),
-                    Token(TokenType.ASSIGN_OP),
+        expected = [Token(TokenType.LESS_EQUAL),
                     Token(TokenType.LESS),
+                    Token(TokenType.GREATER_EQUAL),
                     Token(TokenType.GREATER),
-                    Token(TokenType.ASSIGN_OP),
-                    Token(TokenType.GREATER),
-                    Token(TokenType.ASSIGN_OP),
-                    Token(TokenType.ASSIGN_OP),
-                    Token(TokenType.EXCLAMATION),
-                    Token(TokenType.ASSIGN_OP),
+                    Token(TokenType.EQUAL),
+                    Token(TokenType.NOT_EQUAL),
                     Token(TokenType.EOT)
+                    ]
+        self.assertEqual(expected, tokens)
+
+    def test_comment_eot_handling(self):
+
+        tokens = []
+        line = "//to jest komentarz "
+        put_line_in_lexer_text_source(self.lexer, line)
+
+        while not self.lexer.is_eot_token():
+            token = self.lexer.get_token()
+            tokens.append(token)
+
+        expected = [Token(TokenType.EOT)
                     ]
         self.assertEqual(expected, tokens)
 
     def test_logic_operators(self):
 
         tokens = []
-        line = "| & !"
+        line = "| & ! "
         put_line_in_lexer_text_source(self.lexer, line)
 
         while not self.lexer.is_eot_token():

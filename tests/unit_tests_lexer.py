@@ -9,8 +9,8 @@ class TestSource(unittest.TestCase):
 
     def test_file_source(self):
 
-        from lexer.source_read import TextSourceFromFile
-        textSource = TextSourceFromFile('../test_files/test_lexer.txt')
+        from lexer.source_read import TextSource
+        textSource = TextSource('../test_files/test_code.txt')
 
         lexer = LexerMain(64, 256, textSource)
 

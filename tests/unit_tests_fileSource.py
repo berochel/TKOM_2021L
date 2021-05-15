@@ -4,7 +4,7 @@
 
 import unittest
 
-from lexer.source_read import TextSourceFromFile
+from lexer.source_read import TextSource
 
 TEST_SOURCE_1_LINE = '../test_files/test_lexer_singleLineReadExample.txt'
 TEST_SOURCE_2_LINES = '../test_files/test_lexer_twoLineReadExample.txt'
@@ -15,7 +15,7 @@ class TestSource(unittest.TestCase):
     def test_file_source(self):
 
         text = ""
-        file_source = TextSourceFromFile(TEST_SOURCE_1_LINE)
+        file_source = TextSource(TEST_SOURCE_1_LINE)
         while not file_source.is_end_of_text():
             text += file_source.read_char()
 
@@ -25,7 +25,7 @@ class TestSource(unittest.TestCase):
     def test_file_source_three_lines(self):
 
         text = ""
-        file_source = TextSourceFromFile(TEST_SOURCE_2_LINES)
+        file_source = TextSource(TEST_SOURCE_2_LINES)
         while not file_source.is_end_of_text():
             text += file_source.read_char()
 

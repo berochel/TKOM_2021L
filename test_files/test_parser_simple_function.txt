@@ -1,0 +1,6 @@
+{
+Void pow(Double * x)
+{
+       x = x * x;
+}
+}

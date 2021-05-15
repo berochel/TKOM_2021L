@@ -7,24 +7,20 @@
 from argparse import ArgumentParser
 
 from lexer.lexer import LexerMain
-from lexer.source_read import TextSourceFromInput, TextSourceFromFile
+from lexer.source_read import TextSource
 
 if __name__ == '__main__':
 
     parser = ArgumentParser()
 
     parser.add_argument('--verbose', '-v', action="store_true")
-    parser.add_argument('--file_path', type=str, default='test_files/test_lexer.txt')
-    parser.add_argument('--input_type', type=str, choices=['stdin', 'file'], default='file')
+    parser.add_argument('--file_path', type=str, default='test_files/test_code.txt')
     parser.add_argument('--ident_length', type=int, default=64)
     parser.add_argument('--string_length', type=int, default=256)
 
     args = parser.parse_args()
 
-    if args.input_type == 'stdin':
-        textSource = TextSourceFromInput()
-    else:
-        textSource = TextSourceFromFile(args.file_path)
+    textSource = TextSource(args.file_path)
 
     lexer = LexerMain(args.ident_length, args.string_length, textSource)
 
