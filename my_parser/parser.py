@@ -424,33 +424,33 @@ class Parser:
             return None
 
         if self.is_a_relation_operation(TokenType.LESS_EQUAL):
-            left = self._parse_rest_of_relation_condition(is_negated, left, TokenType.LESS_EQUAL)
+            left = self._parse_rest_of_relation_condition(left, TokenType.LESS_EQUAL)
         if self.is_a_relation_operation(TokenType.GREATER_EQUAL):
-            left = self._parse_rest_of_relation_condition(is_negated, left, TokenType.GREATER_EQUAL)
+            left = self._parse_rest_of_relation_condition(left, TokenType.GREATER_EQUAL)
         if self.is_a_relation_operation(TokenType.LESS):
-            left = self._parse_rest_of_relation_condition(is_negated, left, TokenType.LESS)
+            left = self._parse_rest_of_relation_condition(left, TokenType.LESS)
         if self.is_a_relation_operation(TokenType.GREATER):
-            left = self._parse_rest_of_relation_condition(is_negated, left, TokenType.GREATER)
+            left = self._parse_rest_of_relation_condition(left, TokenType.GREATER)
 
         if is_negated:
             left = nodes.NotOperation(left)
 
         return left
 
-    def _parse_rest_of_relation_condition(self, is_negated, left, operator):
+    def _parse_rest_of_relation_condition(self, left, operator):
 
         self._next_token()
 
         condition = self._parse_expression()
         if condition:
             if operator == TokenType.LESS_EQUAL:
-                return nodes.LessEqualOperation(is_negated, left, condition)
+                return nodes.LessEqualOperation(left, condition)
             if operator == TokenType.GREATER_EQUAL:
-                return nodes.GreaterEqualOperation(is_negated, left, condition)
+                return nodes.GreaterEqualOperation(left, condition)
             if operator == TokenType.LESS:
-                return nodes.LessOperation(is_negated, left, condition)
+                return nodes.LessOperation(left, condition)
             if operator == TokenType.GREATER:
-                return nodes.GreaterOperation(is_negated, left, condition)
+                return nodes.GreaterOperation(left, condition)
 
         raise ParserError(self.current_token.value, self.current_token.end,
                           "Couldn't find right operand of relation operation.")
@@ -517,7 +517,7 @@ class Parser:
         expression = self._parse_parenth_expression()
         if expression:
             return expression
-        expression = self._parse_variable()
+        expression = self._parse_variable_or_method()
         if expression:
             return expression
 
@@ -525,8 +525,14 @@ class Parser:
 
     def _parse_boolean_value(self):
 
-        if self.current_token.type in [TokenType.K_TRUE, TokenType.K_FALSE]:
-            value = self.current_token.type
+        value = None
+
+        if self.current_token.type == TokenType.K_TRUE:
+            value = "true"
+        if self.current_token.type == TokenType.K_FALSE:
+            value = "false"
+
+        if value:
             self._next_token()
             return nodes.Boolean(value)
 
@@ -574,7 +580,7 @@ class Parser:
 
         raise ParserError(self.current_token.value, self.current_token.end, "Couldn't parse parentheses.")
 
-    def _parse_variable(self):
+    def _parse_variable_or_method(self):
 
         if self.current_token.type != TokenType.VALUE_ID:
             return None

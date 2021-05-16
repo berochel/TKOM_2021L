@@ -57,6 +57,11 @@ class Variable:
 
         return print_string
 
+    def __eq__(self, other):
+        if self.name == other.name:
+            return True
+        return False
+
 
 class ObjectVariable:
     def __init__(self, parent_name, name):
@@ -72,6 +77,11 @@ class ObjectVariable:
             print_string += f'\n{x}'
 
         return print_string
+
+    def __eq__(self, other):
+        if self.name == other.name and self.parent_name == other.parent_name:
+            return True
+        return False
 
 
 class NotOperation:
@@ -206,15 +216,12 @@ class NotEqualOperation:
 
 
 class LessOperation:
-    def __init__(self, is_negated, left, right):
-        self.is_negated = is_negated
+    def __init__(self, left, right):
         self.left = left
         self.right = right
 
     def __repr__(self):
         print_string = "Less:"
-        print_string += f'\nIs negated:'
-        print_string += f'\n{self.is_negated}'
         print_string += f'\nLeft less operand:'
         print_string += f'\n{self.left}'
         print_string += f'\nRight less operand:'
@@ -224,15 +231,12 @@ class LessOperation:
 
 
 class GreaterOperation:
-    def __init__(self, is_negated, left, right):
-        self.is_negated = is_negated
+    def __init__(self, left, right):
         self.left = left
         self.right = right
 
     def __repr__(self):
         print_string = "Greater:"
-        print_string += f'\nIs negated:'
-        print_string += f'\n{self.is_negated}'
         print_string += f'\nLeft greater operand:'
         print_string += f'\n{self.left}'
         print_string += f'\nRight greater operand:'
@@ -242,15 +246,12 @@ class GreaterOperation:
 
 
 class LessEqualOperation:
-    def __init__(self, is_negated, left, right):
-        self.is_negated = is_negated
+    def __init__(self, left, right):
         self.left = left
         self.right = right
 
     def __repr__(self):
         print_string = "Less or Equal:"
-        print_string += f'\nIs negated:'
-        print_string += f'\n{self.is_negated}'
         print_string += f'\nLeft less or equal operand:'
         print_string += f'\n{self.left}'
         print_string += f'\nRight less or equal operand:'
@@ -260,15 +261,13 @@ class LessEqualOperation:
 
 
 class GreaterEqualOperation:
-    def __init__(self, is_negated, left, right):
+    def __init__(self, left, right):
         self.is_negated = is_negated
         self.left = left
         self.right = right
 
     def __repr__(self):
         print_string = "Greater or Equal:"
-        print_string += f'\nIs negated:'
-        print_string += f'\n{self.is_negated}'
         print_string += f'\nLeft greater or equal operand:'
         print_string += f'\n{self.left}'
         print_string += f'\nRight greater or equal operand:'
@@ -348,6 +347,11 @@ class FunctionCall:
 
         return print_string
 
+    def __eq__(self, other):
+        if self.name == other.name and self.params == other.params:
+            return True
+        return False
+
 
 class ObjectMethod:
     def __init__(self, parent_name, name, params):
@@ -369,6 +373,11 @@ class ObjectMethod:
                 print_string += f'\n{x}'
 
         return print_string
+
+    def __eq__(self, other):
+        if self.name == other.name and self.params == other.params and self.parent_name == other.parent_name:
+            return True
+        return False
 
 
 class ReturnStat:
