@@ -8,6 +8,10 @@ class Integer:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor.scope_manager.last_operation_result = self.value
+        return self
+
 
 class Float:
     def __init__(self, value, decimalValue, denominator):
@@ -24,6 +28,10 @@ class Float:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor.scope_manager.last_operation_result = self.value + self.decimalValue / 10 ** self.denominator
+        return self
+
 
 class String:
     def __init__(self, value):
@@ -35,6 +43,10 @@ class String:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor.scope_manager.last_operation_result = self.value
+        return self
+
 
 class Boolean:
     def __init__(self, value):
@@ -45,6 +57,10 @@ class Boolean:
         print_string += f'\n{self.value}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor.scope_manager.last_operation_result = self.value
+        return self
 
 
 class Variable:
@@ -61,6 +77,10 @@ class Variable:
         if self.name == other.name:
             return True
         return False
+
+    def accept(self, visitor):
+        visitor.scope_manager.last_operation_result = visitor.scope_manager.get_var_or_attr(self.name)
+        return self
 
 
 class ObjectVariable:
@@ -83,6 +103,12 @@ class ObjectVariable:
             return True
         return False
 
+    def accept(self, visitor):
+        temp = visitor._return_var_name(self)
+
+        visitor.scope_manager.last_operation_result = visitor.scope_manager.get_var_or_attr(temp)
+        return self
+
 
 class NotOperation:
     def __init__(self, right):
@@ -94,6 +120,8 @@ class NotOperation:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_not_operation(self)
 
 class OrOperation:
     def __init__(self, left, right):
@@ -108,6 +136,9 @@ class OrOperation:
         print_string += f'\n{self.right}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_or_operation(self)
 
 
 class AndOperation:
@@ -124,6 +155,9 @@ class AndOperation:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_and_operation(self)
+
 
 class AddOperation:
     def __init__(self, left, right):
@@ -138,6 +172,9 @@ class AddOperation:
         print_string += f'\n{self.right}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_add_operation(self)
 
 
 class SubOperation:
@@ -154,6 +191,9 @@ class SubOperation:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_sub_operation(self)
+
 
 class MulOperation:
     def __init__(self, left, right):
@@ -168,6 +208,9 @@ class MulOperation:
         print_string += f'\n{self.right}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_mul_operation(self)
 
 
 class DivOperation:
@@ -184,6 +227,9 @@ class DivOperation:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_div_operation(self)
+
 
 class EqualOperation:
     def __init__(self, left, right):
@@ -198,6 +244,9 @@ class EqualOperation:
         print_string += f'\n{self.right}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_equal_operation(self)
 
 
 class NotEqualOperation:
@@ -214,6 +263,9 @@ class NotEqualOperation:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_not_equal_operation(self)
+
 
 class LessOperation:
     def __init__(self, left, right):
@@ -228,6 +280,9 @@ class LessOperation:
         print_string += f'\n{self.right}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_less_operation(self)
 
 
 class GreaterOperation:
@@ -244,6 +299,9 @@ class GreaterOperation:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_greater_operation(self)
+
 
 class LessEqualOperation:
     def __init__(self, left, right):
@@ -259,10 +317,12 @@ class LessEqualOperation:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_less_equal_operation(self)
+
 
 class GreaterEqualOperation:
     def __init__(self, left, right):
-        self.is_negated = is_negated
         self.left = left
         self.right = right
 
@@ -274,6 +334,9 @@ class GreaterEqualOperation:
         print_string += f'\n{self.right}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_greater_equal_operation(self)
 
 
 class Class:
@@ -309,6 +372,10 @@ class Parameter:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor.scope_manager.last_operation_result = self
+        return self
+
 
 class FunctionDef:
     def __init__(self, type, name, params, instructions):
@@ -330,6 +397,8 @@ class FunctionDef:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_function_def_operation(self)
 
 class FunctionCall:
     def __init__(self, name, params):
@@ -351,6 +420,9 @@ class FunctionCall:
         if self.name == other.name and self.params == other.params:
             return True
         return False
+
+    def accept(self, visitor):
+        visitor._visit_function_call_operation(self)
 
 
 class ObjectMethod:
@@ -379,6 +451,9 @@ class ObjectMethod:
             return True
         return False
 
+    def accept(self, visitor):
+        visitor._visit_object_method_operation(self)
+
 
 class ReturnStat:
     def __init__(self, return_value):
@@ -389,6 +464,9 @@ class ReturnStat:
         print_string += f'\nReturn value:\n{self.return_value}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_return_stat_operation(self)
 
 
 class IfElseStat:
@@ -414,6 +492,9 @@ class IfElseStat:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_if_else_operation(self)
+
 
 class WhileStat:
     def __init__(self, condition, instructions):
@@ -430,6 +511,9 @@ class WhileStat:
 
         return print_string
 
+    def accept(self, visitor):
+        visitor._visit_while_operation(self)
+
 
 class AssignStat:
     def __init__(self, left, right):
@@ -444,6 +528,9 @@ class AssignStat:
         print_string += f'\n{self.right}'
 
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_assign_operation(self)
 
 
 class InitStat:
@@ -462,16 +549,8 @@ class InitStat:
 
         return print_string
 
-
-class Comment:
-    def __init__(self, value):
-        self.value = value
-
-    def __repr__(self):
-        print_string = "Comment:"
-        print_string += f'\n{self.value}'
-
-        return print_string
+    def accept(self, visitor):
+        visitor._visit_init_operation(self)
 
 
 class Program:
@@ -486,3 +565,6 @@ class Program:
         for key, value in self.classes_dict.items():
             print_string += f'\n{value}'
         return print_string
+
+    def accept(self, visitor):
+        visitor._visit_program(self)

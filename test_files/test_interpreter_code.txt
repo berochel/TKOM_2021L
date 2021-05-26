@@ -1,0 +1,57 @@
+{
+
+class Klasa
+{
+    Integer a = 0;
+    Integer b;
+    Boolean c;
+
+    Integer someMethod()
+    {
+    	a = a + b;
+        return a;
+    }
+    Void addOne(Integer * x)
+    {
+	    x = x + 1;
+    }
+}
+
+Integer main()
+{
+    Integer i = 2;
+    {
+	    Double temp = 0.0000001;
+	    temp = 1.0 * 1234.5678;
+	    temp = temp / 3.0;
+	    i = 3;
+    }
+    Boolean bool;
+
+    obiekt = Klasa();
+    obiekt.a = 2;
+    obiekt.b = 6;
+    System.out.print("A rowna sie:",obiekt.a);
+    //i powinno sie rownac 8
+    i = obiekt.someMethod();
+    System.out.print("Po wywolaniu obiekt.someMethod, obiekt.a rowna sie:",obiekt.a,", a \"i\" rowna sie:",i);
+
+    Integer power = 16;
+    pow(i,power);
+
+    return i;
+
+    //String a = "szesnascie";
+    //return a;
+}
+Void pow(Integer * x, Integer * power)
+{
+    Integer temp = x;
+    while(power > 1)
+    {
+        x = x * temp;
+        power = power - 1;
+        System.out.print("x:",x,", pow:",power);
+    }
+}
+}

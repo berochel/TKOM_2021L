@@ -36,10 +36,10 @@ class Parser:
 
         name = self.current_token.value
 
-        if self.functions_dict and name in self.functions_dict.keys():
-            raise ParserError(self.current_token.value, self.current_token.end, "Function redefinition")
-
         self._next_token(TokenType.VALUE_ID)
+
+        if self.functions_dict and name in self.functions_dict.keys():
+            raise ParserError(self.current_token.value, self.current_token.start, " - Function redefinition.")
 
         function = self._parse_rest_of_function_definition(func_type, name)
 
@@ -59,6 +59,8 @@ class Parser:
             param = self._parse_parameter_definition()
             if param:
                 params.append(param)
+            # else:
+            # raise ParserError
 
         return params
 
@@ -85,34 +87,33 @@ class Parser:
 
         self._next_token(TokenType.K_CLASS)
         name = self.current_token.value
-        if self.classes_dict and (name in self.classes_dict.keys()):
-            raise ParserError(self.current_token.value, self.current_token.end, "Class redefinition")
-
         self._next_token(TokenType.VALUE_ID)
+
+        if self.classes_dict and (name in self.classes_dict.keys()):
+            raise ParserError(self.current_token.value, self.current_token.start, " - Class redefinition.")
+
         self._next_token(TokenType.LEFT_BRACKET)
+
+        return self._parse_rest_of_class_definition(name)
+
+    def _parse_rest_of_class_definition(self, name):
 
         member_methods = []
         member_variables = []
 
-        member = self._parse_init_statement_or_function_definition()
-
-        while member:
-            if member.__class__.__name__ == "FunctionDef":
-                member_methods.append(member)
-            else:
-                member_variables.append(member)
-
-            member = self._parse_init_statement_or_function_definition()
+        while self._parse_init_statement_or_function_definition(member_methods, member_variables):
+            pass
 
         self._next_token(TokenType.RIGHT_BRACKET)
         classdef = {name: nodes.Class(name, member_variables, member_methods)}
         self.classes_dict.update(classdef)
+
         return classdef
 
-    def _parse_init_statement_or_function_definition(self):
+    def _parse_init_statement_or_function_definition(self, member_methods, member_variables):
         member_type = self._parse_function_type()
         if not member_type:
-            return None
+            return False
 
         name = self.current_token.value
 
@@ -121,12 +122,14 @@ class Parser:
         member = None
         if self.current_token.type == TokenType.LEFT_PARENT:
             member = self._parse_rest_of_function_definition(member_type, name)
-            return member
+            member_methods.append(member)
+            return True
 
         member = self._parse_rest_of_init_statement(member_type, name)
         self._next_token(TokenType.SEMICOLON)
+        member_variables.append(member)
 
-        return member
+        return True
 
     def _parse_rest_of_function_definition(self, member_type, name):
 
@@ -137,6 +140,8 @@ class Parser:
         self._next_token(TokenType.RIGHT_PARENT)
 
         instructions = self._parse_block()
+
+        # if instructions None - error
 
         function = nodes.FunctionDef(member_type, name, params, instructions)
 
@@ -210,6 +215,7 @@ class Parser:
         self._next_token(TokenType.VALUE_ID)
 
         object_name = []
+
         while self.current_token.type == TokenType.DOT:
             self._next_token(TokenType.DOT)
             object_name.append(self.current_token.value)
@@ -297,7 +303,6 @@ class Parser:
         return self._parse_rest_of_function_call(name)
 
     def _parse_rest_of_assign(self, name, object_name):
-        # there can be a simple ident or a object member
         self._next_token(TokenType.ASSIGN_OP)
 
         assignable = self._parse_assignable()
@@ -315,11 +320,15 @@ class Parser:
 
         self._next_token(TokenType.LEFT_PARENT)
 
-        arguments = [self._parse_assignable()]
+        arguments = []
+        argument = self._parse_assignable()
 
-        while self.current_token.type == TokenType.COMMA:
-            self._next_token(TokenType.COMMA)
-            arguments.append(self._parse_assignable())
+        if argument:
+            arguments.append(argument)
+            while self.current_token.type == TokenType.COMMA:
+                self._next_token(TokenType.COMMA)
+                arguments.append(self._parse_assignable())
+                # if argument is None: raise Error
 
         self._next_token(TokenType.RIGHT_PARENT)
 
@@ -422,15 +431,23 @@ class Parser:
         left = self._parse_expression()
         if not left:
             return None
-
-        if self.is_a_relation_operation(TokenType.LESS_EQUAL):
-            left = self._parse_rest_of_relation_condition(left, TokenType.LESS_EQUAL)
-        if self.is_a_relation_operation(TokenType.GREATER_EQUAL):
-            left = self._parse_rest_of_relation_condition(left, TokenType.GREATER_EQUAL)
-        if self.is_a_relation_operation(TokenType.LESS):
-            left = self._parse_rest_of_relation_condition(left, TokenType.LESS)
-        if self.is_a_relation_operation(TokenType.GREATER):
-            left = self._parse_rest_of_relation_condition(left, TokenType.GREATER)
+        if self.is_token_relation_operator(self.current_token.type):
+            if self.is_a_relation_operation(TokenType.LESS_EQUAL):
+                self._next_token()
+                right = self._parse_expression()
+                left = nodes.LessEqualOperation(left, right)
+            if self.is_a_relation_operation(TokenType.GREATER_EQUAL):
+                self._next_token()
+                right = self._parse_expression()
+                left = nodes.GreaterEqualOperation(left, right)
+            if self.is_a_relation_operation(TokenType.LESS):
+                self._next_token()
+                right = self._parse_expression()
+                left = nodes.LessOperation(left, right)
+            if self.is_a_relation_operation(TokenType.GREATER):
+                self._next_token()
+                right = self._parse_expression()
+                left = nodes.GreaterOperation(left, right)
 
         if is_negated:
             left = nodes.NotOperation(left)
@@ -635,3 +652,12 @@ class Parser:
         self._next_token(self.current_token.type)
 
         return par_type
+
+    def is_token_relation_operator(self, token):
+        if token in [TokenType.LESS,
+                     TokenType.LESS_EQUAL,
+                     TokenType.GREATER,
+                     TokenType.GREATER_EQUAL]:
+            return True
+
+        return False

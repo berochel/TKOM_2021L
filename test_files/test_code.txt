@@ -17,7 +17,6 @@ class Klasa
     }
 }
 
-
 Integer main()
 {
     Integer i;
@@ -35,7 +34,7 @@ Integer main()
     }
     Boolean bool;
 
-    while(i < 10 | bool != true)
+    while(! i < 10 | bool != true | i > 4)
     {
    	    if (i  < 5)
    	    {
