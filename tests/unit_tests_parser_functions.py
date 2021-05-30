@@ -50,11 +50,11 @@ class ParserFunctionsTest(unittest.TestCase):
         self.assertEqual(expected, par_type)
 
         par_type = self.parser._parse_variable_or_method()
-        expected = nodes.FunctionCall(nodes.Variable("a"), [None])
+        expected = nodes.FunctionCall(nodes.Variable("a"), [])
         self.assertEqual(expected, par_type)
 
         par_type = self.parser._parse_variable_or_method()
-        expected = nodes.ObjectMethod("a", ["b"], [None])
+        expected = nodes.ObjectMethod("a", ["b"], [])
         self.assertEqual(expected, par_type)
 
     def test_next_token(self):
@@ -81,7 +81,7 @@ class ParserFunctionsTest(unittest.TestCase):
         self.assertEqual(par.left.left.name, "a")
         self.assertEqual(par.left.right.value, 2)
         self.assertEqual(par.right.left.value, 6)
-        self.assertEqual(par.right.right, nodes.FunctionCall(nodes.Variable("b"), [None]))
+        self.assertEqual(par.right.right, nodes.FunctionCall(nodes.Variable("b"), []))
 
     def test_condition(self):
         line = "true | b & a != ! c <= 3 "

@@ -2,9 +2,8 @@ import error.error_handlers as error
 
 
 class Scope:
-    def __init__(self, name, parent=None):
+    def __init__(self, name):
         self.name = name
-        self.parent = parent
         self.vars_or_attrs = {}
         self.methods = {}
 
@@ -12,9 +11,6 @@ class Scope:
         self.vars_or_attrs[name] = value
 
     def get_var_or_attr(self, name):
-        if name not in self.vars_or_attrs.keys():
-            raise error.UndeclaredSymbol()
-
         symbol = self.vars_or_attrs[name]
         return symbol
 
@@ -30,54 +26,87 @@ class Scope:
 
 
 class ScopeManager:
+
     def __init__(self):
-        self.global_scope = Scope("global")
-        self.current_scope = Scope('main')
+        self.scope_stack = [[Scope('global')], []]
         self.last_operation_result = None
         self.return_result = None
 
     def add_var_or_attr(self, name, variable):
-        if name in self.current_scope.vars_or_attrs.keys():
-            raise error.OverwriteError(name)
-        self.current_scope.add_var_or_attr(name, variable)
+        for scope in self.scope_stack[-1]:
+            if name in scope.vars_or_attrs.keys():
+                raise error.OverwriteError(name)
+
+        self.scope_stack[-1][-1].add_var_or_attr(name, variable)
 
     def update_var_or_attr(self, name, variable):
-        if name not in self.current_scope.vars_or_attrs.keys():
-            raise error.UndeclaredSymbol(name)
+        for scope in self.scope_stack[-1]:
+            if name in scope.vars_or_attrs.keys():
+                scope.vars_or_attrs[name] = variable
+                return True
 
-        self.current_scope.vars_or_attrs[name] = variable
+        raise error.UndeclaredSymbol(name)
 
     def get_var_or_attr(self, name):
-        return self.current_scope.get_var_or_attr(name)
+        for scope in self.scope_stack[-1]:
+            if name in scope.vars_or_attrs.keys():
+                return scope.get_var_or_attr(name)
+
+        raise error.UndeclaredSymbol()
 
     def add_function(self, name, function):
-        self.global_scope.add_method(name, function)
+        self.scope_stack[0][0].add_method(name, function)
 
     def get_function(self, name):
-        return self.global_scope.get_method(name)
+        return self.scope_stack[0][0].get_method(name)
 
     def add_lib_method(self, name, function):
-        self.global_scope.add_var_or_attr(name, function)
+        self.scope_stack[0][0].add_var_or_attr(name, function)
 
     def get_lib_method(self, name):
-        return self.global_scope.get_var_or_attr(name)
+        return self.scope_stack[0][0].get_var_or_attr(name)
 
     def add_method(self, name, method):
-        if name in self.current_scope.vars_or_attrs.keys():
-            raise error.OverwriteError(name)
-        self.current_scope.add_method(name, method)
+        for scope in self.scope_stack[-1]:
+            if name in scope.methods.keys():
+                raise error.OverwriteError(name)
+
+        self.scope_stack[-1][-1].add_method(name, method)
 
     def get_method(self, name):
-        return self.current_scope.get_method(name)
+        for scope in self.scope_stack[-1]:
+            if name in scope.methods.keys():
+                return scope.get_method(name)
+
+        raise error.UndeclaredSymbol(name)
 
     def switch_to_child_scope(self, function):
-        function_scope = Scope(function.name, self.current_scope)
-        self.current_scope = function_scope
+        function_scope = Scope(function.name)
+
+        last_scope = self.scope_stack[-1].copy()
+        last_scope.append(function_scope)
+        self.scope_stack.append(last_scope)
+
+    def switch_to_method_scope(self, function):
+        function_scope = Scope(function.name)
+
+        last_scope = []
+        last_scope.append(self.scope_stack[0][0])
+        last_scope.append(function_scope)
+        self.scope_stack.append(last_scope)
 
     def switch_to_parent_scope(self):
-        if not self.current_scope.parent:
-            raise error.NoParentContextError(self.current_scope.name)
+        if len(self.scope_stack) == 0:
+            raise error.NoParentContextError()
 
+        self.scope_stack.pop()
         self.last_operation_result = self.return_result
-        self.current_scope = self.current_scope.parent
+        self.return_result = None
+
+    def return_from_method_scope(self):
+        if len(self.scope_stack) == 0:
+            raise error.NoParentContextError()
+
+        self.scope_stack.pop()
+        self.last_operation_result = self.return_result
         self.return_result = None

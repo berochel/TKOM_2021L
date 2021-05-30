@@ -2,8 +2,11 @@
 
 from argparse import ArgumentParser
 
+from my_parser.parser import Parser
+
+import my_interpreter.lib_methods as lib
 from lexer.source_read import TextSource
-from my_interpreter.visitor import Visitor
+from my_interpreter.visitor import Visitor, Interpreter
 
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
@@ -16,6 +19,14 @@ if __name__ == '__main__':
 
     textSource = TextSource(args.file_path)
 
-    visitor = Visitor(args.ident_length, args.string_length, textSource)
+    parser = Parser(args.ident_length, args.string_length, textSource)
 
-    program = visitor.interpret()
+    tree = parser.parse()
+
+    visitor = Visitor(tree)
+
+    program = Interpreter(visitor, lib)
+
+    program.interpret()
+
+    print(f'Returned {program.return_val}.')

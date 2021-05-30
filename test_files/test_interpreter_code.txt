@@ -32,26 +32,39 @@ Integer main()
     obiekt.a = 2;
     obiekt.b = 6;
     System.out.print("A rowna sie:",obiekt.a);
+
     //i powinno sie rownac 8
+
     i = obiekt.someMethod();
     System.out.print("Po wywolaniu obiekt.someMethod, obiekt.a rowna sie:",obiekt.a,", a \"i\" rowna sie:",i);
 
-    Integer power = 16;
-    pow(i,power);
+    Integer power = 4;
+    Integer temp = pow(obiekt.b,power);
 
-    return i;
+    obiekt.c = true;
 
-    //String a = "szesnascie";
-    //return a;
-}
-Void pow(Integer * x, Integer * power)
-{
-    Integer temp = x;
-    while(power > 1)
+    if (obiekt.c == true)
     {
-        x = x * temp;
-        power = power - 1;
-        System.out.print("x:",x,", pow:",power);
+        return temp;
     }
+    else
+    {
+        String a = "szesnascie";
+        return a;
+    }
+}
+Integer pow(Integer * x, Integer * power)
+{
+
+    if(power > 1)
+    {
+    x = x * pow(x,power-1);
+    return x;
+    }
+    else
+    {
+    return x;
+    }
+
 }
 }

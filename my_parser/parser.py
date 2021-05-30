@@ -59,8 +59,8 @@ class Parser:
             param = self._parse_parameter_definition()
             if param:
                 params.append(param)
-            # else:
-            # raise ParserError
+            else:
+                raise ParserError()
 
         return params
 
@@ -141,7 +141,8 @@ class Parser:
 
         instructions = self._parse_block()
 
-        # if instructions None - error
+        if not instructions:
+            raise ParserError()
 
         function = nodes.FunctionDef(member_type, name, params, instructions)
 
@@ -288,6 +289,10 @@ class Parser:
 
     def _parse_assignable(self):
 
+        expr = self._parse_boolean_value()
+        if expr:
+            return expr
+
         expr = self._parse_expression()
         if expr:
             return expr
@@ -328,7 +333,8 @@ class Parser:
             while self.current_token.type == TokenType.COMMA:
                 self._next_token(TokenType.COMMA)
                 arguments.append(self._parse_assignable())
-                # if argument is None: raise Error
+                if not argument:
+                    raise ParserError
 
         self._next_token(TokenType.RIGHT_PARENT)
 
@@ -431,46 +437,28 @@ class Parser:
         left = self._parse_expression()
         if not left:
             return None
-        if self.is_token_relation_operator(self.current_token.type):
-            if self.is_a_relation_operation(TokenType.LESS_EQUAL):
-                self._next_token()
-                right = self._parse_expression()
-                left = nodes.LessEqualOperation(left, right)
-            if self.is_a_relation_operation(TokenType.GREATER_EQUAL):
-                self._next_token()
-                right = self._parse_expression()
-                left = nodes.GreaterEqualOperation(left, right)
-            if self.is_a_relation_operation(TokenType.LESS):
-                self._next_token()
-                right = self._parse_expression()
-                left = nodes.LessOperation(left, right)
-            if self.is_a_relation_operation(TokenType.GREATER):
-                self._next_token()
-                right = self._parse_expression()
-                left = nodes.GreaterOperation(left, right)
+
+        if self.is_a_relation_operation(TokenType.LESS_EQUAL):
+            self._next_token()
+            right = self._parse_expression()
+            left = nodes.LessEqualOperation(left, right)
+        if self.is_a_relation_operation(TokenType.GREATER_EQUAL):
+            self._next_token()
+            right = self._parse_expression()
+            left = nodes.GreaterEqualOperation(left, right)
+        if self.is_a_relation_operation(TokenType.LESS):
+            self._next_token()
+            right = self._parse_expression()
+            left = nodes.LessOperation(left, right)
+        if self.is_a_relation_operation(TokenType.GREATER):
+            self._next_token()
+            right = self._parse_expression()
+            left = nodes.GreaterOperation(left, right)
 
         if is_negated:
             left = nodes.NotOperation(left)
 
         return left
-
-    def _parse_rest_of_relation_condition(self, left, operator):
-
-        self._next_token()
-
-        condition = self._parse_expression()
-        if condition:
-            if operator == TokenType.LESS_EQUAL:
-                return nodes.LessEqualOperation(left, condition)
-            if operator == TokenType.GREATER_EQUAL:
-                return nodes.GreaterEqualOperation(left, condition)
-            if operator == TokenType.LESS:
-                return nodes.LessOperation(left, condition)
-            if operator == TokenType.GREATER:
-                return nodes.GreaterOperation(left, condition)
-
-        raise ParserError(self.current_token.value, self.current_token.end,
-                          "Couldn't find right operand of relation operation.")
 
     def _parse_expression(self):
 

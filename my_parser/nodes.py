@@ -374,7 +374,7 @@ class Parameter:
 
     def accept(self, visitor):
         visitor.scope_manager.last_operation_result = self
-        return self
+        return self.name
 
 
 class FunctionDef:
