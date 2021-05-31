@@ -90,9 +90,7 @@ class ScopeManager:
     def switch_to_method_scope(self, function):
         function_scope = Scope(function.name)
 
-        last_scope = []
-        last_scope.append(self.scope_stack[0][0])
-        last_scope.append(function_scope)
+        last_scope = [self.scope_stack[0][0], function_scope]
         self.scope_stack.append(last_scope)
 
     def switch_to_parent_scope(self):

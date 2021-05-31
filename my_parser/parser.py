@@ -72,7 +72,8 @@ class Parser:
 
         is_refer = False
 
-        if self._next_token(TokenType.MUL_OR_REFER):
+        if self.current_token.type == TokenType.MUL_OR_REFER:
+            self._next_token(TokenType.MUL_OR_REFER)
             is_refer = True
 
         name = self.current_token.value

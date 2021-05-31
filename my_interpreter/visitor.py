@@ -116,6 +116,9 @@ class Visitor:
         node.right.accept(self)
         arg2 = self._return_type_based_on_val(self.scope_manager.last_operation_result)
 
+        if self.scope_manager.last_operation_result == 0:
+            raise error.ZeroDivisionError(f'Unexpected: {node}')
+
         if arg1 == arg2:
             self.scope_manager.last_operation_result = result / self.scope_manager.last_operation_result
             return self.scope_manager.last_operation_result
@@ -278,6 +281,9 @@ class Visitor:
         for var, value in zip(is_refer_list, to_refer_list):
             if type(var) == my_parser.nodes.Variable:
                 self.scope_manager.update_var_or_attr(var.name, value)
+            if type(var) == my_parser.nodes.ObjectVariable:
+                object_ = self.scope_manager.get_var_or_attr(var.parent_name)
+                object_.member_variables[var.name[0]] = value
 
     def _visit_object_method_operation(self, node: nodes.ObjectMethod):
 
@@ -285,8 +291,7 @@ class Visitor:
         class_object = self.scope_manager.get_var_or_attr(node.parent_name)
 
         # get function from local scope.
-        name = node.parent_name + "." + node.name[0]
-        function = self.scope_manager.get_method(name)
+        function = class_object.member_methods[node.name[0]]
 
         # visit parameters and setup reference checking.
         arguments = []
@@ -310,9 +315,8 @@ class Visitor:
 
         # get method variable values from local scope before switching.
         member_vars_values = []
-        for attributes in class_object.member_variables:
-            name = node.parent_name + "." + attributes.name
-            member_vars_values.append(self.scope_manager.get_var_or_attr(name))
+        for key, value in class_object.member_variables.items():
+            member_vars_values.append(value)
 
         # switch scope and add parameters to the scope dictionary.
         self.scope_manager.switch_to_method_scope(function)
@@ -321,12 +325,11 @@ class Visitor:
 
         # set method variable values in new scope
         for attributes, values in zip(class_object.member_variables, member_vars_values):
-            name = attributes.name
-            self.scope_manager.add_var_or_attr(name, values)
+            self.scope_manager.add_var_or_attr(attributes, values)
 
         # add methods in a new scope.
-        for meths in class_object.member_methods:
-            self.scope_manager.add_method(meths.name, meths)
+        for key, value in class_object.member_methods.items():
+            self.scope_manager.add_method(key, value)
 
         # visit the function instructions.
         self._visit_block(function.instructions)
@@ -347,16 +350,14 @@ class Visitor:
         # get method variable values from local scope before switching.
         member_vars_values = []
         for attributes in class_object.member_variables:
-            name = attributes.name
-            member_vars_values.append(self.scope_manager.get_var_or_attr(name))
+            member_vars_values.append(self.scope_manager.get_var_or_attr(attributes))
 
         # switch the context to a previous one
         self.scope_manager.return_from_method_scope()
 
         # set method variable values in parent scope
         for attributes, values in zip(class_object.member_variables, member_vars_values):
-            name = node.parent_name + "." + attributes.name
-            self.scope_manager.update_var_or_attr(name, values)
+            class_object.member_variables[attributes] = values
 
         # update variables and object members which have been passed to function as references.
         for var, value in zip(is_refer_list, to_refer_list):
@@ -393,6 +394,14 @@ class Visitor:
         if type(self.scope_manager.last_operation_result) == my_parser.nodes.Class:
             self._visit_new_object(node)
             return
+
+        if type(node.left) == my_parser.nodes.ObjectVariable:
+            object_ = self.scope_manager.get_var_or_attr(node.left.parent_name)
+            if object_:
+                object_.member_variables[node.left.name[0]] = self.scope_manager.last_operation_result
+                return
+
+            raise error.UndeclaredSymbol()
 
         self.scope_manager.update_var_or_attr(self._return_var_name(node.left),
                                               self.scope_manager.last_operation_result)
@@ -443,17 +452,40 @@ class Visitor:
 
         class_def = self.scope_manager.last_operation_result
 
-        self.scope_manager.add_var_or_attr(node.left.name, class_def)
+        class_instance = nodes.ClassInstance(node.left.name, class_def, {}, {})
 
-        for variables in class_def.member_variables:
-            name = variables.name
-            variables.name = node.left.name + "." + variables.name
-            self._visit_init_operation(variables)
-            variables.name = name
+        self._visit_class_instance(node.left.name, class_instance)
 
-        for meths in class_def.member_methods:
-            name = node.left.name + "." + meths.name
-            self.scope_manager.add_method(name, meths)
+    def _visit_class_instance(self, object_name, class_instance: nodes.ClassInstance):
+
+        for variables in class_instance.type.member_variables:
+            self._add_class_attr_operation(variables, class_instance)
+
+        for meths in class_instance.type.member_methods:
+            self._add_class_method_operation(meths, class_instance)
+
+        self.scope_manager.add_var_or_attr(object_name, class_instance)
+
+    def _add_class_attr_operation(self, node: nodes.InitStat, class_instance: nodes.ClassInstance):
+        name = node.name
+        default_value = self._return_default_val_of_variable(node)
+
+        if node.right is None:
+            class_instance.member_variables[name] = default_value
+            return True
+
+        node.right.accept(self)
+        arg1 = self._return_type_based_on_val(self.scope_manager.last_operation_result)
+
+        if arg1 == self._return_type_based_on_val(default_value):
+            class_instance.member_variables[name] = self.scope_manager.last_operation_result
+            return True
+
+        raise error.InvalidInitialisationError(f'Unexpected: {node}')
+
+    @staticmethod
+    def _add_class_method_operation(meths, class_instance):
+        class_instance.member_methods[meths.name] = meths
 
     def _visit_lib_method_operation(self, lib_method_ref, node: nodes.FunctionCall):
 

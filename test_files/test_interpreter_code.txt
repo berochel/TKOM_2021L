@@ -41,6 +41,8 @@ Integer main()
     Integer power = 4;
     Integer temp = pow(obiekt.b,power);
 
+    System.out.print(obiekt.b);
+
     obiekt.c = true;
 
     if (obiekt.c == true)
@@ -59,6 +61,7 @@ Integer pow(Integer * x, Integer * power)
     if(power > 1)
     {
     x = x * pow(x,power-1);
+    System.out.print("x: ", x);
     return x;
     }
     else

@@ -104,9 +104,10 @@ class ObjectVariable:
         return False
 
     def accept(self, visitor):
-        temp = visitor._return_var_name(self)
+        object = visitor.scope_manager.get_var_or_attr(self.parent_name)
+        if object:
+            visitor.scope_manager.last_operation_result = object.member_variables[self.name[0]]
 
-        visitor.scope_manager.last_operation_result = visitor.scope_manager.get_var_or_attr(temp)
         return self
 
 
@@ -342,6 +343,26 @@ class GreaterEqualOperation:
 class Class:
     def __init__(self, name, member_variables, member_methods):
         self.name = name
+        self.member_variables = member_variables
+        self.member_methods = member_methods
+
+    def __repr__(self):
+        print_string = "Class:"
+        print_string += f'\nName:{self.name}'
+        print_string += f'\nVariables:'
+        for x in self.member_variables:
+            print_string += f'\n{x}'
+        print_string += f'\nMethods:'
+        for x in self.member_methods:
+            print_string += f'\n{x}'
+
+        return print_string
+
+
+class ClassInstance:
+    def __init__(self, name, type, member_variables, member_methods):
+        self.name = name
+        self.type = type
         self.member_variables = member_variables
         self.member_methods = member_methods
 
