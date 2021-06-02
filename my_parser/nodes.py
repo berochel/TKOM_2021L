@@ -59,7 +59,11 @@ class Boolean:
         return print_string
 
     def accept(self, visitor):
-        visitor.scope_manager.last_operation_result = self.value
+        if self.value == 'true':
+            visitor.scope_manager.last_operation_result = True
+        else:
+            visitor.scope_manager.last_operation_result = False
+
         return self
 
 
@@ -359,24 +363,6 @@ class Class:
         return print_string
 
 
-class ClassInstance:
-    def __init__(self, name, type, member_variables, member_methods):
-        self.name = name
-        self.type = type
-        self.member_variables = member_variables
-        self.member_methods = member_methods
-
-    def __repr__(self):
-        print_string = "Class:"
-        print_string += f'\nName:{self.name}'
-        print_string += f'\nVariables:'
-        for x in self.member_variables:
-            print_string += f'\n{x}'
-        print_string += f'\nMethods:'
-        for x in self.member_methods:
-            print_string += f'\n{x}'
-
-        return print_string
 
 
 class Parameter:
@@ -572,6 +558,46 @@ class InitStat:
 
     def accept(self, visitor):
         visitor._visit_init_operation(self)
+
+
+class ClassInstance:
+    def __init__(self, name, type_of_class):
+        self.name = name
+        self.type_of_class = type_of_class
+        self.member_variables = {}
+
+    def __repr__(self):
+        print_string = "Class:"
+        print_string += f'\nName:{self.name}'
+        print_string += f'\nVariables:'
+        for x in self.member_variables:
+            print_string += f'\n{x}'
+
+        return print_string
+
+    def accept(self, visitor):
+
+        for variables in self.type_of_class.member_variables:
+            self._add_class_attr_operation(variables, visitor)
+
+        visitor.scope_manager.add_var_or_attr(self.name, self)
+
+    def _add_class_attr_operation(self, node: InitStat, visitor):
+        name = node.name
+        default_value = visitor._return_default_val_of_variable(node)
+
+        if node.right is None:
+            self.member_variables[name] = default_value
+            return True
+
+        node.right.accept(visitor)
+        arg1 = visitor._return_type_based_on_val(visitor.scope_manager.last_operation_result)
+
+        if arg1 == visitor._return_type_based_on_val(default_value):
+            self.member_variables[name] = visitor.scope_manager.last_operation_result
+            return True
+
+        raise error.InvalidInitialisationError(f'Unexpected: {node}')
 
 
 class Program:

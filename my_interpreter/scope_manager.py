@@ -28,7 +28,8 @@ class Scope:
 class ScopeManager:
 
     def __init__(self):
-        self.scope_stack = [[Scope('global')], []]
+        self.scope_stack = [[]]
+        self.global_stack = Scope('global')
         self.last_operation_result = None
         self.return_result = None
 
@@ -55,16 +56,16 @@ class ScopeManager:
         raise error.UndeclaredSymbol()
 
     def add_function(self, name, function):
-        self.scope_stack[0][0].add_method(name, function)
+        self.global_stack.add_method(name, function)
 
     def get_function(self, name):
-        return self.scope_stack[0][0].get_method(name)
+        return self.global_stack.get_method(name)
 
     def add_lib_method(self, name, function):
-        self.scope_stack[0][0].add_var_or_attr(name, function)
+        self.global_stack.add_var_or_attr(name, function)
 
     def get_lib_method(self, name):
-        return self.scope_stack[0][0].get_var_or_attr(name)
+        return self.global_stack.get_var_or_attr(name)
 
     def add_method(self, name, method):
         for scope in self.scope_stack[-1]:
@@ -90,7 +91,7 @@ class ScopeManager:
     def switch_to_method_scope(self, function):
         function_scope = Scope(function.name)
 
-        last_scope = [self.scope_stack[0][0], function_scope]
+        last_scope = [function_scope]
         self.scope_stack.append(last_scope)
 
     def switch_to_parent_scope(self):
@@ -101,10 +102,3 @@ class ScopeManager:
         self.last_operation_result = self.return_result
         self.return_result = None
 
-    def return_from_method_scope(self):
-        if len(self.scope_stack) == 0:
-            raise error.NoParentContextError()
-
-        self.scope_stack.pop()
-        self.last_operation_result = self.return_result
-        self.return_result = None

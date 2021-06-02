@@ -60,7 +60,8 @@ class Parser:
             if param:
                 params.append(param)
             else:
-                raise ParserError()
+                raise ParserError(self.current_token.value, self.current_token.start, "Couldn't find next parameter "
+                                                                                      "definition.")
 
         return params
 
@@ -120,7 +121,6 @@ class Parser:
 
         self._next_token(TokenType.VALUE_ID)
 
-        member = None
         if self.current_token.type == TokenType.LEFT_PARENT:
             member = self._parse_rest_of_function_definition(member_type, name)
             member_methods.append(member)
@@ -143,7 +143,7 @@ class Parser:
         instructions = self._parse_block()
 
         if not instructions:
-            raise ParserError()
+            raise ParserError(self.current_token.value, self.current_token.start, " Function is empty.")
 
         function = nodes.FunctionDef(member_type, name, params, instructions)
 
@@ -290,11 +290,7 @@ class Parser:
 
     def _parse_assignable(self):
 
-        expr = self._parse_boolean_value()
-        if expr:
-            return expr
-
-        expr = self._parse_expression()
+        expr = self._parse_condition()
         if expr:
             return expr
 
@@ -306,7 +302,7 @@ class Parser:
 
         name = self.current_token.value
 
-        return self._parse_rest_of_function_call(name)
+        return self._parse_rest_of_function_call(name, None)
 
     def _parse_rest_of_assign(self, name, object_name):
         self._next_token(TokenType.ASSIGN_OP)
@@ -365,8 +361,6 @@ class Parser:
         if not left:
             return None
 
-        right = []
-
         while self.current_token.type == TokenType.VERTICAL_LINE:
             operator = self.current_token.type
             self._next_token(operator)
@@ -386,8 +380,6 @@ class Parser:
         if not left:
             return None
 
-        right = []
-
         while self.current_token.type == TokenType.AMPERSAND:
             operator = self.current_token.type
             self._next_token(operator)
@@ -406,8 +398,6 @@ class Parser:
         left = self._parse_relation_condition()
         if not left:
             return None
-
-        right = []
 
         if self.current_token.type in [TokenType.EQUAL, TokenType.NOT_EQUAL]:
             operator = self.current_token.type
@@ -437,21 +427,23 @@ class Parser:
 
         left = self._parse_expression()
         if not left:
+            if is_negated:
+                raise ParserError(self.current_token.value, self.current_token.end, "Exclamation mark left without any "
+                                                                                    "negable expression.")
             return None
 
         if self.is_a_relation_operation(TokenType.LESS_EQUAL):
-            self._next_token()
-            right = self._parse_expression()
+            right = self._parse_rest_of_relation_condition()
             left = nodes.LessEqualOperation(left, right)
-        if self.is_a_relation_operation(TokenType.GREATER_EQUAL):
+        elif self.is_a_relation_operation(TokenType.GREATER_EQUAL):
             self._next_token()
             right = self._parse_expression()
             left = nodes.GreaterEqualOperation(left, right)
-        if self.is_a_relation_operation(TokenType.LESS):
+        elif self.is_a_relation_operation(TokenType.LESS):
             self._next_token()
             right = self._parse_expression()
             left = nodes.LessOperation(left, right)
-        if self.is_a_relation_operation(TokenType.GREATER):
+        elif self.is_a_relation_operation(TokenType.GREATER):
             self._next_token()
             right = self._parse_expression()
             left = nodes.GreaterOperation(left, right)
@@ -461,13 +453,18 @@ class Parser:
 
         return left
 
+    def _parse_rest_of_relation_condition(self):
+        self._next_token()
+        right = self._parse_expression()
+        if right:
+            raise ParserError(self.current_token.value, self.current_token.end,
+                              "Unable to parse second operand of relation condition.")
+
     def _parse_expression(self):
 
         left = self._parse_multiply_expression()
         if not left:
             return None
-
-        right = []
 
         while self.current_token.type in [TokenType.PLUS_OR_CONC, TokenType.MINUS]:
             operator = self.current_token.type
@@ -490,8 +487,6 @@ class Parser:
         left = self._parse_primary_expression()
         if not left:
             return None
-
-        right = []
 
         while self.current_token.type in [TokenType.MUL_OR_REFER, TokenType.DIV]:
             operator = self.current_token.type
@@ -579,10 +574,10 @@ class Parser:
             return None
 
         self._next_token(TokenType.LEFT_PARENT)
-        expression = self._parse_expression()
+        condition = self._parse_condition()
         self._next_token(TokenType.RIGHT_PARENT)
-        if expression:
-            return expression
+        if condition:
+            return condition
 
         raise ParserError(self.current_token.value, self.current_token.end, "Couldn't parse parentheses.")
 
@@ -621,9 +616,6 @@ class Parser:
     def is_a_relation_operation(self, operator):
         return self.current_token.type == operator
 
-        raise ParserError(self.current_token, self.current_token.start,
-                          f'Invalid relation operation operand.')
-
     def _parse_function_type(self):
         if self.current_token.type not in function_types:
             return None
@@ -642,7 +634,8 @@ class Parser:
 
         return par_type
 
-    def is_token_relation_operator(self, token):
+    @staticmethod
+    def is_token_relation_operator(token):
         if token in [TokenType.LESS,
                      TokenType.LESS_EQUAL,
                      TokenType.GREATER,

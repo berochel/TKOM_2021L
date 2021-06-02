@@ -43,7 +43,7 @@ Integer main()
 
     System.out.print(obiekt.b);
 
-    obiekt.c = true;
+    obiekt.c = true & false;
 
     if (obiekt.c == true)
     {

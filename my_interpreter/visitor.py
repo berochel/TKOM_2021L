@@ -1,5 +1,5 @@
 import my_parser
-import nodes
+import my_parser.nodes as nodes
 
 import error.error_handlers as error
 from lexer.types import TokenType
@@ -47,21 +47,28 @@ class Visitor:
         node.left.accept(self)
 
         if self.scope_manager.last_operation_result:
+            self.scope_manager.last_operation_result = True
             return
 
         node.right.accept(self)
+
+        if self.scope_manager.last_operation_result:
+            self.scope_manager.last_operation_result = True
+            return
+
+        self.scope_manager.last_operation_result = False
 
     def _visit_and_operation(self, node: nodes.AndOperation):
         result = True
 
         node.left.accept(self)
 
-        if not self.scope_manager.last_operation_result:
+        if self.scope_manager.last_operation_result is None or self.scope_manager.last_operation_result is False:
             result = False
 
         node.right.accept(self)
 
-        if not self.scope_manager.last_operation_result:
+        if self.scope_manager.last_operation_result is None or self.scope_manager.last_operation_result is False:
             result = False
 
         self.scope_manager.last_operation_result = result
@@ -131,7 +138,7 @@ class Visitor:
         arg1 = self._return_type_based_on_val(result)
 
         node.right.accept(self)
-        arg2 = self._return_type_based_on_val(self.scope_manager.last_operation_result)
+        arg2 = self._return_type_based_on_val(node.right)
 
         if arg1 == arg2:
             self.scope_manager.last_operation_result = result == self.scope_manager.last_operation_result
@@ -217,7 +224,7 @@ class Visitor:
         # if function is a library function - serve it here.
         if type(name) == list:
             name = self._return_var_name(node.name)
-            if name in self.scope_manager.scope_stack[0][0].vars_or_attrs.keys():
+            if name in self.scope_manager.global_stack.vars_or_attrs.keys():
                 lib_method_ref = self.scope_manager.get_lib_method(name)
                 self._visit_lib_method_operation(lib_method_ref, node)
                 return
@@ -275,7 +282,7 @@ class Visitor:
                 is_refer_list.remove(refer_vars)
 
         # switch the context to a previous one
-        self.scope_manager.return_from_method_scope()
+        self.scope_manager.switch_to_parent_scope()
 
         # update variables and object members which have been passed to function as references.
         for var, value in zip(is_refer_list, to_refer_list):
@@ -291,7 +298,13 @@ class Visitor:
         class_object = self.scope_manager.get_var_or_attr(node.parent_name)
 
         # get function from local scope.
-        function = class_object.member_methods[node.name[0]]
+        function = None
+        for method in class_object.type_of_class.member_methods:
+            if node.name[0] == method.name:
+                function = method
+
+        if function is None:
+            raise error.UndeclaredMethod()
 
         # visit parameters and setup reference checking.
         arguments = []
@@ -328,8 +341,8 @@ class Visitor:
             self.scope_manager.add_var_or_attr(attributes, values)
 
         # add methods in a new scope.
-        for key, value in class_object.member_methods.items():
-            self.scope_manager.add_method(key, value)
+        for method in class_object.type_of_class.member_methods:
+            self.scope_manager.add_method(method.name, method)
 
         # visit the function instructions.
         self._visit_block(function.instructions)
@@ -353,7 +366,7 @@ class Visitor:
             member_vars_values.append(self.scope_manager.get_var_or_attr(attributes))
 
         # switch the context to a previous one
-        self.scope_manager.return_from_method_scope()
+        self.scope_manager.switch_to_parent_scope()
 
         # set method variable values in parent scope
         for attributes, values in zip(class_object.member_variables, member_vars_values):
@@ -452,40 +465,9 @@ class Visitor:
 
         class_def = self.scope_manager.last_operation_result
 
-        class_instance = nodes.ClassInstance(node.left.name, class_def, {}, {})
+        class_instance = nodes.ClassInstance(node.left.name, class_def)
 
-        self._visit_class_instance(node.left.name, class_instance)
-
-    def _visit_class_instance(self, object_name, class_instance: nodes.ClassInstance):
-
-        for variables in class_instance.type.member_variables:
-            self._add_class_attr_operation(variables, class_instance)
-
-        for meths in class_instance.type.member_methods:
-            self._add_class_method_operation(meths, class_instance)
-
-        self.scope_manager.add_var_or_attr(object_name, class_instance)
-
-    def _add_class_attr_operation(self, node: nodes.InitStat, class_instance: nodes.ClassInstance):
-        name = node.name
-        default_value = self._return_default_val_of_variable(node)
-
-        if node.right is None:
-            class_instance.member_variables[name] = default_value
-            return True
-
-        node.right.accept(self)
-        arg1 = self._return_type_based_on_val(self.scope_manager.last_operation_result)
-
-        if arg1 == self._return_type_based_on_val(default_value):
-            class_instance.member_variables[name] = self.scope_manager.last_operation_result
-            return True
-
-        raise error.InvalidInitialisationError(f'Unexpected: {node}')
-
-    @staticmethod
-    def _add_class_method_operation(meths, class_instance):
-        class_instance.member_methods[meths.name] = meths
+        class_instance.accept(self)
 
     def _visit_lib_method_operation(self, lib_method_ref, node: nodes.FunctionCall):
 
